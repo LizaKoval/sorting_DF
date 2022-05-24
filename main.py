@@ -29,7 +29,7 @@ if __name__ == "__main__":
         for value in final_arr:
             result_arr.append((value, row[0], datetime, channel))
         return result_arr
-
+#
     rows = df.rdd.flatMap(lambda x: FindWords(x[0], x[1], x[2]))
 
     df2 = rows.toDF(['word', 'row', 'datetime', 'channel'])
