@@ -16,16 +16,20 @@ if __name__ == "__main__":
     vocabulary_df = set(bin_df)
     vocabulary_bs = spark.sparkContext.broadcast(vocabulary_df)
 
-    def FindWords(row):
-        final_arr = []
-        for word in vocabulary_bs.value:
-            final_arr.append(re.findall(r'\s' + word + r'\s|\S', str(row), flags=re.IGNORECASE)) # re.findall возвращает список строк
-        return final_arr
-    # FindWords returns list of strings, but I need just one particular word in the last column instead
-    # File "E:\intern\task_4\sorting_DF\main.py", line 23, in FindWords
-    # TypeError: can only concatenate str (not "Row") to str
 
-    rows = df.rdd.flatMap(lambda x: (x[0], x[1], x[2], FindWords(x[2])))
+    def FindWords(channel, datetime, row):
+        final_arr = []
+
+        for word in vocabulary_bs.value:
+            reg_exp = '\b' + word + '\b'
+            final_arr.append(re.findall(reg_exp, row, flags=re.IGNORECASE))  # re.findall возвращает список строк
+
+        result_arr = []
+        for value in final_arr:
+            result_arr.append((value, row, datetime, channel))
+        return result_arr
+
+    rows = df.rdd.flatMap(lambda x: FindWords(str(x[0]), str(x[1]), str(x[2])))
 
     schema = ["channel", "datetime", "frametext", "word"]
     df2 = rows.toDF(schema=schema).show(10)
