@@ -21,7 +21,11 @@ if __name__ == "__main__":
         final_arr = []
 
         for word in vocabulary_bs.value:
+
+            print("==========================================================")
             reg_exp = '\b' + word + '\b'
+            temp = re.findall(reg_exp, row, flags=re.IGNORECASE)
+            print(type(temp))
             final_arr.append(re.findall(reg_exp, row, flags=re.IGNORECASE))  # re.findall возвращает список строк
 
         result_arr = []
