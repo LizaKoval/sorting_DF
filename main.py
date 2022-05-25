@@ -13,7 +13,7 @@ if __name__ == "__main__":
     df.printSchema()
 
     bin_df = spark.read.csv("words").collect()
-    vocabulary_bs = spark.sparkContext.broadcast(set(bin_df))
+    vocabulary_bs = spark.sparkContext.broadcast(bin_df)
 
 
     def FindWords(channel, datetime, row):
