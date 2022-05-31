@@ -1,7 +1,7 @@
 import findspark
 import pyspark
 import re
-from pyspark.sql import SparkSession, functions as sf
+from pyspark.sql import SparkSession
 
 if __name__ == "__main__":
     spark = SparkSession.builder.master("local[1]") \
@@ -30,9 +30,17 @@ if __name__ == "__main__":
 #
     rows = df.rdd.flatMap(lambda x: FindWords(x[0], x[1], x[2]))
 
-    df2 = rows.toDF(['channel_name', 'datetime', 'word', 'row'])
-    df2.show(10)
-    print(df2.count())
+    df_with_words = rows.toDF(['channel_name', 'datetime', 'word', 'row'])
+    schema =
+    df_with_words.printSchema()
+    #df_with_words.show(10)
+    #print(df_with_words.count())
+    df_with_words.createOrReplaceTempView("words")
+    df_result = spark.sql("select count(word) as total_mentions,  word as key from words group by word order by word").show(10)
+
+
+
+
 
 
 
