@@ -2,7 +2,8 @@ import findspark
 import pyspark
 import re
 from pyspark.sql import SparkSession
-from pyspark.sql.types import StructType, StructField, TimestampType, StringType
+from pyspark.sql.functions import col, lit, create_map
+from pyspark.sql.types import StructType, StructField, MapType, TimestampType, StringType
 
 if __name__ == "__main__":
     spark = SparkSession.builder.master("local[1]") \
@@ -33,20 +34,47 @@ if __name__ == "__main__":
 #
     rows = df.rdd.flatMap(lambda x: FindWords(x[0], x[1], x[2]))
 
-    # schema = StructType([StructField("channel_name", StringType(), True),
-    #                      StructField("datetime", TimestampType(), False),
-    #                      StructField("word", StringType(), True),
-    #                      StructField("row", StringType(), True)])
-
     df_with_words = rows.toDF(['channel_name', 'datetime', 'word', 'row'])
 
     df_with_words.printSchema()
     #df_with_words.show(3)
     #print(df_with_words.count())
     df_with_words.createOrReplaceTempView("words")
-    #df_result = spark.sql("select count(word) as total_mentions, word as key from words group by word order by word").show(10)
-    df_word_channel_mentions = spark.sql("select words.word, words.channel_name, count(words.word) as ment_by_channel_times from words group by word, channel_name").show(10)
+    df_word_channel_mentions = spark.sql("select words.word as word, words.channel_name as channel_name, count(words.word) as ment_by_channel_times from words group by word, channel_name order by words.word")
+    df_word_channel_mentions.createOrReplaceTempView("words")
+    df_with_arr = df_word_channel_mentions.withColumn("arr", create_map(
+        lit("channel_name"), col("channel_name"),
+        lit("ment_times"), col("ment_by_channel_times")
+        )).drop("channel_name", "ment_by_channel_times")
+    df_with_arr.printSchema()
+    df_with_arr.createOrReplaceTempView("words")
+    # df_with_arr.show(3, truncate=False)
+    df_word_arr = spark.sql(" select words.word, array(words.ment_times) from words group by words.word")
+    df_word_arr.printSchema()
+    df_word_arr.show(3, truncate=False)
+    #df_with_arr.show(3, truncate=False)
 
+    # df_with_array = spark.sql("select words.word, json_object('channel_name' VALUE 'words.channel_name', 'ment_times' VALUE 'words.ment_by_channel_times' ) from words")
+    # df_with_array.printSchema()
+    # df_with_array.show(3, truncate=False)
+
+
+
+
+
+    # PySpark MapType (also called map type)
+    # is a data type to represent Python Dictionary (dict) to store key-value pair
+
+    #PySpark SQL function create_map() is used
+    # to convert selected DataFrame columns to MapType,
+    # create_map() takes a list of columns you wanted
+    # to convert as an argument and returns a MapType column.
+
+
+    # schema = StructType([StructField("channel_name", StringType(), True),
+    #                      StructField("datetime", TimestampType(), False),
+    #                      StructField("word", StringType(), True),
+    #                      StructField("row", StringType(), True)])
 
 
 
