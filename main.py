@@ -13,7 +13,6 @@ if __name__ == "__main__":
     temp_df = spark.read.json('test')
     temp_df.printSchema()
     df = temp_df.select('channel.name','datetime','frame_text')
-    df.show(3)
     df.printSchema()
 
     bin_df = spark.read.csv("words").collect()
@@ -33,12 +32,9 @@ if __name__ == "__main__":
         return result_arr
 #
     rows = df.rdd.flatMap(lambda x: FindWords(x[0], x[1], x[2]))
-
     df_with_words = rows.toDF(['channel_name', 'datetime', 'word', 'row'])
 
     df_with_words.printSchema()
-    #df_with_words.show(3)
-    #print(df_with_words.count())
     df_with_words.createOrReplaceTempView("words")
     df_word_channel_mentions = spark.sql("select words.word as word, words.channel_name as channel_name, count(words.word) as ment_by_channel_times from words group by word, channel_name order by words.word")
     df_with_arr = df_word_channel_mentions.withColumn("arr", create_map(
@@ -49,10 +45,9 @@ if __name__ == "__main__":
     # df_with_arr.createOrReplaceTempView("words")
     #df_with_arr.show(3, truncate=False)
     #df_with_arr.withColumn("arr", col("arr").cast(StringType()))
-    df2 = df_with_arr.rdd.map(lambda x: str(x[1])).toDF(['word', 'ment_by_channels'])
+    df2 = df_with_arr.rdd.map(lambda x: [x[0], repr(x[1])]).toDF(['word', 'str_arr'])
     df2.printSchema()
-    #df_with_arr.printSchema()
-    #df_with_arr.groupBy('word').agg(collect_set('arr')).show(10, truncate=False)
+    df2.groupBy('word').agg(collect_set('str_arr')).show(10, truncate=False)
 
 
     # df_word_arr = spark.sql(" select words.word, array(words.ment_times) from words group by words.word")
