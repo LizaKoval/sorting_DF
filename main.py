@@ -1,9 +1,11 @@
+from select import select
+
 import findspark
 import pyspark
 import re
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, lit, create_map, collect_set, to_json, collect_list, udf
-from pyspark.sql.types import StructType, StructField, MapType, TimestampType, StringType
+from pyspark.sql.functions import col, lit, create_map, collect_set, to_json, collect_list, udf, map_values
+from pyspark.sql.types import StructType, StructField, MapType, TimestampType, StringType, IntegerType
 
 if __name__ == "__main__":
     spark = SparkSession.builder.master("local[*]") \
@@ -36,6 +38,7 @@ if __name__ == "__main__":
     df_with_words.printSchema()
     df_with_words.createOrReplaceTempView("words")
     df_word_channel_mentions = spark.sql("select words.word as word, words.channel_name as channel_name, count(words.word) as ment_by_channel_times from words group by word, channel_name order by words.word")
+
     df_with_arr = df_word_channel_mentions.withColumn("arr", create_map(
         lit("channel_name"), col("channel_name"),
         lit("ment_times"), col("ment_by_channel_times")
@@ -45,7 +48,31 @@ if __name__ == "__main__":
     df_with_arr.groupBy('word')\
         .agg(collect_list('arr'))\
         .alias("ment_by_channel")\
-        .show(100, truncate=False)
+        #.show(100, truncate=False)
+    df_with_arr.printSchema()
+
+    df_temp = df_with_arr.select("*")\
+        .where(col("word") =='PHONE')\
+        .groupBy('word')\
+        .sum(select("arr.ment_times"))
+
+    #df_with_arr.withColumn("ment_by_channel", )
+
+
+
+
+
+
+
+    # def total_mentions(word, info_dict):
+    #     temp = list(map(lambda x: map_values(x), info_dict))
+    #     result = sum(map(lambda x: int(x[1]), temp))
+    #     return [word, info_dict, result]
+    #
+    # df_result = df_with_arr.rdd.map(lambda x: total_mentions(x[0], x[1])).toDF(['word', 'info', 'total_mentions']).show(100, truncate=False )
+
+
+    #df_with_arr.withColumn('total_mentions', lit(total_mentions('ment_by_channel'))).show(100)
     df_with_arr.printSchema()
 
 
