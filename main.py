@@ -2,7 +2,7 @@ import findspark
 import pyspark
 import re
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, lit, create_map, collect_set
+from pyspark.sql.functions import col, lit, create_map, collect_set, to_json, collect_list, udf
 from pyspark.sql.types import StructType, StructField, MapType, TimestampType, StringType
 
 if __name__ == "__main__":
@@ -17,7 +17,6 @@ if __name__ == "__main__":
 
     bin_df = spark.read.csv("words").collect()
     vocabulary_bs = spark.sparkContext.broadcast(bin_df)
-
 
     def FindWords(channel, datetime, row):
         final_arr = []
@@ -42,33 +41,23 @@ if __name__ == "__main__":
         lit("ment_times"), col("ment_by_channel_times")
         )).drop("channel_name", "ment_by_channel_times")
     df_with_arr.printSchema()
-    # df_with_arr.createOrReplaceTempView("words")
-    #df_with_arr.show(3, truncate=False)
-    #df_with_arr.withColumn("arr", col("arr").cast(StringType()))
-    df2 = df_with_arr.rdd.map(lambda x: [x[0], repr(x[1])]).toDF(['word', 'str_arr'])
-    df2.printSchema()
-    df2.groupBy('word').agg(collect_set('str_arr')).show(10, truncate=False)
+
+    df_with_arr.groupBy('word')\
+        .agg(collect_list('arr'))\
+        .alias("ment_by_channel")\
+        .show(100, truncate=False)
+    df_with_arr.printSchema()
 
 
-    # df_word_arr = spark.sql(" select words.word, array(words.ment_times) from words group by words.word")
-    # df_word_arr.printSchema()
-    # df_word_arr.show(3, truncate=False)
-    #df_with_arr.show(3, truncate=False)
 
 
-    # PySpark MapType (also called map type)
-    # is a data type to represent Python Dictionary (dict) to store key-value pair
-
-    #PySpark SQL function create_map() is used
-    # to convert selected DataFrame columns to MapType,
-    # create_map() takes a list of columns you wanted
-    # to convert as an argument and returns a MapType column.
+    # =============================================================================== converts maps -> str ятв then aggragetes it into list of stringd
+    # df_with_arr.printSchema()
+    # df2 = df_with_arr.rdd.map(lambda x: [x[0], repr(x[1])]).toDF(['word', 'str_arr'])
+    # df2.printSchema()
+    # df2.groupBy('word').agg(collect_set('str_arr')).alias("str_arr")#.show(10, truncate=False)
 
 
-    # schema = StructType([StructField("channel_name", StringType(), True),
-    #                      StructField("datetime", TimestampType(), False),
-    #                      StructField("word", StringType(), True),
-    #                      StructField("row", StringType(), True)])
 
 
 
