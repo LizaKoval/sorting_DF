@@ -1,6 +1,7 @@
 import re
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, lit, create_map, collect_set, to_json, collect_list, udf, map_values
+from pyspark.sql.types import StructField, StructType, StringType, IntegerType, ArrayType, MapType
 
 if __name__ == "__main__":
     spark = SparkSession.builder.master("local[*]") \
@@ -21,7 +22,7 @@ if __name__ == "__main__":
 
         for word in vocabulary_bs.value:
             reg_exp = r'\b' + word[0] + r'\b'
-            final_arr.extend(re.findall(reg_exp, row[0], flags=re.IGNORECASE))  # re.findall возвращает список строк
+            final_arr.extend(re.findall(reg_exp, row[0], flags=re.IGNORECASE))
 
         result_arr = []
         for value in final_arr:
@@ -50,15 +51,22 @@ if __name__ == "__main__":
     df_with_list = df_with_map.groupBy('word')\
             .agg(collect_list('arr'))\
             .alias("ment_by_channel")\
-            # .show(50, truncate=False)
 
     def total_mentions(word, info_dict):
         temp = map(lambda z: int(z["ment_times"]), info_dict)
         result = sum(temp)
         return [word, info_dict, result]
 
-    df_result = df_with_list.rdd.map(lambda x: total_mentions(x[0], x[1])).toDF(['word', 'info', 'total_mentions'])
-    df_result.coalesce(1).write.format("json").save("output/mentions_by_channel.json")
+    rdd_result = df_with_list.rdd.map(lambda x: total_mentions(x[0], x[1]))
+
+    schema = StructType([
+        StructField("key", StringType(), False),
+        StructField("mentions_by_channel", ArrayType(MapType(StringType(), StringType(), True))),
+        StructField("total_mentions", IntegerType(), True)
+    ])
+
+    df_result = rdd_result.toDF(schema=schema)
+    df_result.coalesce(1).write.format("json").save("OUTPUT")
 
 
 
