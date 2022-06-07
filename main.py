@@ -1,10 +1,6 @@
-from select import select
-import findspark
-import pyspark
 import re
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, lit, create_map, collect_set, to_json, collect_list, udf, map_values
-from pyspark.sql.types import StructType, StructField, MapType, TimestampType, StringType, IntegerType
 
 if __name__ == "__main__":
     spark = SparkSession.builder.master("local[*]") \
@@ -55,7 +51,6 @@ if __name__ == "__main__":
             .agg(collect_list('arr'))\
             .alias("ment_by_channel")\
             # .show(50, truncate=False)
-    df_with_list.show(50, truncate=False)
 
     def total_mentions(word, info_dict):
         temp = map(lambda z: int(z["ment_times"]), info_dict)
@@ -63,54 +58,7 @@ if __name__ == "__main__":
         return [word, info_dict, result]
 
     df_result = df_with_list.rdd.map(lambda x: total_mentions(x[0], x[1])).toDF(['word', 'info', 'total_mentions'])
-    df_result.show(50)
-
-    # def total_mentions(word, info_dict):
-    #     temp = list(map(lambda x: map_values(x), info_dict))
-    #     result = sum(map(lambda x: int(x[1]), temp))
-    #     return [word, info_dict, result]
-    #
-    # df_result = df_with_list.rdd.map(lambda x: total_mentions(x[0], x[1])).toDF(['word', 'info', 'total_mentions'])
-
-    # df_with_list.createOrReplaceTempView("df")
-    # df_total_mentions = spark.sql("""select df.word as word,
-    #                                 df.collect_list(arr) as mentions_info,
-    #                                 (select sum(df.collect_list(arr) as total_mentions
-    #                                 from df
-    #                                 unnest(""))
-
-
-
-    # df_with_arr.select("arr.ment_times", df_with_arr.arr.getField("ment_times"))
-
-    # df_temp = df_with_arr.select("*")\
-    #     .where(col("word") =='PHONE')\
-    #     .groupBy('word')\
-    #     .sum(select("arr.ment_times"))
-
-    #df_with_arr.withColumn("ment_by_channel", )
-
-
-
-
-
-
-
-
-
-
-    #df_with_arr.withColumn('total_mentions', lit(total_mentions('ment_by_channel'))).show(100)
-    #df_with_arr.printSchema()
-
-
-
-
-    # =============================================================================== converts maps -> str ятв then aggragetes it into list of stringd
-    # df_with_arr.printSchema()
-    # df2 = df_with_arr.rdd.map(lambda x: [x[0], repr(x[1])]).toDF(['word', 'str_arr'])
-    # df2.printSchema()
-    # df2.groupBy('word').agg(collect_set('str_arr')).alias("str_arr")#.show(10, truncate=False)
-
+    df_result.coalesce(1).write.format("json").save("output/mentions_by_channel.json")
 
 
 
