@@ -55,18 +55,18 @@ if __name__ == "__main__":
     def total_mentions(word, info_dict):
         temp = map(lambda z: int(z["ment_times"]), info_dict)
         result = sum(temp)
-        return [word, info_dict, result]
+        return [result, word, info_dict]
 
     rdd_result = df_with_list.rdd.map(lambda x: total_mentions(x[0], x[1]))
 
     schema = StructType([
+        StructField("total_mentions", IntegerType(), True),
         StructField("key", StringType(), False),
-        StructField("mentions_by_channel", ArrayType(MapType(StringType(), StringType(), True))),
-        StructField("total_mentions", IntegerType(), True)
+        StructField("mentions_by_channel", ArrayType(MapType(StringType(), StringType(), True)))
     ])
 
     df_result = rdd_result.toDF(schema=schema)
-    df_result.coalesce(1).write.format("json").save("OUTPUT")
+    df_result.coalesce(1).write.format("json").save("output")
 
 
 
