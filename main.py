@@ -36,7 +36,7 @@ if __name__ == "__main__":
     df_with_words.createOrReplaceTempView("words")
     df_total_mentions = df_with_words.groupBy("word").count()
     df_total_mentions.printSchema()
-    df_total_mentions.show(10)
+    #df_total_mentions.show(10)
     # df_word_channel_mentions = spark.sql("""select words.word as word,
     #                                         words.channel_name as channel_name,
     #                                         count(words.word) as ment_by_channel_times
@@ -45,17 +45,24 @@ if __name__ == "__main__":
     df_word_channel_mentions = df_with_words.select("word","channel_name").groupBy('word', 'channel_name').count().alias("ment_by_channel")
 
     df_word_channel_mentions.printSchema()
-    df_word_channel_mentions.show(10)
+    #df_word_channel_mentions.show(10)
     #
-    # df_with_map = df_word_channel_mentions.withColumn("arr", create_map(
-    #     lit("channel_name"), col("channel_name"),
-    #     lit("ment_times"), col("ment_by_channel_times")
-    #     )).drop("channel_name", "ment_by_channel_times")
-    # df_with_map.printSchema()
-    #
-    # df_with_list = df_with_map.groupBy('word')\
-    #         .agg(collect_list('arr'))\
-    #         .alias("ment_by_channel")\
+
+    df_with_map = df_word_channel_mentions.withColumn("arr", create_map(
+        lit("channel_name"), col("channel_name"),
+        lit("ment_times"), col("count")
+        ))#.drop("channel_name", "ment_by_channel_times")
+    df_with_map.printSchema()
+
+    df_with_list = df_with_map.groupBy('word')\
+            .agg(collect_list('arr'))\
+            .alias("ment_by_channel")\
+
+    df_with_list.printSchema()
+
+    df_with_list.join(df_total_mentions, df_with_list.word == df_total_mentions.word, "inner").show(10)
+
+
     #
     # def total_mentions(word, info_dict):
     #     temp = map(lambda z: int(z["ment_times"]), info_dict)
