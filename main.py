@@ -36,22 +36,14 @@ if __name__ == "__main__":
     df_with_words.createOrReplaceTempView("words")
     df_total_mentions = df_with_words.groupBy("word").count()
     df_total_mentions.printSchema()
-    #df_total_mentions.show(10)
-    # df_word_channel_mentions = spark.sql("""select words.word as word,
-    #                                         words.channel_name as channel_name,
-    #                                         count(words.word) as ment_by_channel_times
-    #                                         from words
-    #                                         group by word, channel_name order by words.word""")
     df_word_channel_mentions = df_with_words.select("word","channel_name").groupBy('word', 'channel_name').count().alias("ment_by_channel")
 
     df_word_channel_mentions.printSchema()
-    #df_word_channel_mentions.show(10)
-    #
 
     df_with_map = df_word_channel_mentions.withColumn("arr", create_map(
         lit("channel_name"), col("channel_name"),
         lit("ment_times"), col("count")
-        ))#.drop("channel_name", "ment_by_channel_times")
+        ))
     df_with_map.printSchema()
 
     df_with_list = df_with_map.groupBy('word')\
@@ -59,30 +51,19 @@ if __name__ == "__main__":
             .alias("ment_by_channel")\
 
     df_with_list.printSchema()
+    df_join = df_with_list.join(df_total_mentions, ["word"])
+    df_join.printSchema()
 
-    df_with_list.join(df_total_mentions, df_with_list.word == df_total_mentions.word, "inner").show(10)
+    schema = StructType([
+        StructField("key", StringType(), False),
+        StructField("mentions_by_channel", ArrayType(MapType(StringType(), StringType(), True))),
+        StructField("total_mentions", IntegerType(), True)
+    ])
 
-
-    #
-    # def total_mentions(word, info_dict):
-    #     temp = map(lambda z: int(z["ment_times"]), info_dict)
-    #     result = sum(temp)
-    #     return [result, word, info_dict]
-    #
-    # rdd_result = df_with_list.rdd.map(lambda x: total_mentions(x[0], x[1]))
-    #
-    # schema = StructType([
-    #     StructField("total_mentions", IntegerType(), True),
-    #     StructField("key", StringType(), False),
-    #     StructField("mentions_by_channel", ArrayType(MapType(StringType(), StringType(), True)))
-    # ])
-    #
-    # df_result = rdd_result.toDF(schema=schema)
-    # df_result.coalesce(1).write.format("json").save("output")
-    #
-
-
-
+    rdd_result = df_join.rdd
+    df_result = rdd_result.toDF(schema=schema)
+    df_result.printSchema()
+    df_result.coalesce(1).write.format("json").save("output")
 
 
 
