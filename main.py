@@ -28,7 +28,7 @@ if __name__ == "__main__":
         for value in final_arr:
             result_arr.append((channel, datetime, value, row[0]))
         return result_arr
-#
+
     rows = df.rdd.flatMap(lambda x: FindWords(x[0], x[1], x[2]))
     df_with_words = rows.toDF(['channel_name', 'datetime', 'word', 'row'])
     df_with_words.printSchema()
