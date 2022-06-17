@@ -36,7 +36,9 @@ if __name__ == "__main__":
     df_with_words.createOrReplaceTempView("words")
     df_total_mentions = df_with_words.groupBy("word").count()
     df_total_mentions.printSchema()
-    df_word_channel_mentions = df_with_words.select("word","channel_name").groupBy('word', 'channel_name').count().alias("ment_by_channel")
+    df_word_channel_mentions = df_with_words.select("word","channel_name")\
+        .groupBy('word', 'channel_name')\
+        .count()
 
     df_word_channel_mentions.printSchema()
 
