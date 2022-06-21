@@ -52,16 +52,20 @@ if __name__ == "__main__":
 
     df_with_list.printSchema()
 
+
     df_with_date_converted = df_with_words.withColumn('datetime', to_timestamp(col('datetime')))
 
     df_date = df_with_date_converted.groupBy('word', to_date('datetime')).count()
+    df_date.printSchema()
 
     df_ment_by_hour = df_with_date_converted.groupBy('word', to_date('datetime'), hour('datetime')).count()
+    df_ment_by_hour.printSchema()
 
     df_date_with_map = df_ment_by_hour.withColumn('map', create_map(
         lit("hour"), col("hour(datetime)"),
         lit("mentions"), col("count")
     )).drop('hour(datetime)', 'count')
+    df_date_with_map.printSchema()
 
     temp_rdd = df_date_with_map.rdd
     schema_date = StructType([
@@ -75,25 +79,44 @@ if __name__ == "__main__":
          .agg(collect_list('mentions_by_hour')).alias("mentions_by_hour")
 
     df_date_join = df_date_with_datelist.join(df_date, ["word"])
-    df_res_for_date = df_date_join.drop(df_date_join.columns[3])
-    df_res_for_date.printSchema()
+    df_date_join.printSchema()
 
-    df_result_join = df_with_list.join(df_res_for_date,  ["word"])
-    df_result_join.printSchema()
+    df_res_before_last_map = df_date_join.drop(df_date_join.columns[3])
+    df_res_before_last_map.printSchema()
 
-    rdd_result = df_result_join.rdd
-
-    schema = StructType([
-        StructField("key", StringType(), False),
-        StructField("mentions_by_channel", ArrayType(MapType(StringType(), StringType(), True))),
+    rdd_converted = df_res_before_last_map.rdd
+    schema_date_after_join = StructType([
+        StructField("word", StringType(), False),
         StructField("date", DateType(), False),
         StructField("mentions_by_hour", ArrayType(MapType(StringType(), IntegerType(), True))),
-        StructField("total_mentions", IntegerType(), True),
+        StructField("mentions", IntegerType(), True)
     ])
+    df_tester = rdd_converted.toDF(schema=schema_date_after_join)
+    df_tester.printSchema()
 
-    df_result = rdd_result.toDF(schema=schema)
-    df_result.printSchema()
-    df_result.coalesce(1).write.format("json").save("output")
+    df_date_final_with_map = df_tester.withColumn('mentions_by_date', create_map(
+        lit("date"), col("date"),
+        #lit("mentions_by_hour"), col("mentions_by_hour"),
+        lit("mentions"), col("mentions")
+    ))#.drop('date'#, 'mentions_by_hour', "mentions")
+    df_date_final_with_map.printSchema()
+
+    # df_result_join = df_with_list.join(df_res_before_collect,  ["word"])
+    # df_result_join.printSchema()
+    #
+    # rdd_result = df_result_join.rdd
+    #
+    # schema = StructType([
+    #     StructField("key", StringType(), False),
+    #     StructField("mentions_by_channel", ArrayType(MapType(StringType(), StringType(), True))),
+    #     StructField("date", DateType(), False),
+    #     StructField("mentions_by_hour", ArrayType(MapType(StringType(), IntegerType(), True))),
+    #     StructField("mentions", IntegerType(), True),
+    # ])
+    #
+    # df_result = rdd_result.toDF(schema=schema)
+    # df_result.printSchema()
+    # df_result.coalesce(1).write.format("json").save("output")
 
 
 
