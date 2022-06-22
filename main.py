@@ -1,7 +1,7 @@
 import re
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, lit, create_map, collect_list, to_timestamp, to_date, hour, struct
-from pyspark.sql.types import StructField, StructType, StringType, IntegerType, ArrayType, MapType, DateType
+from pyspark.sql.types import StructField, StructType, StringType, IntegerType, ArrayType, MapType, DateType, LongType
 
 if __name__ == "__main__":
     spark = SparkSession.builder.master("local[*]") \
@@ -9,7 +9,7 @@ if __name__ == "__main__":
             .getOrCreate()
 
     temp_df_first = spark.read.json('test')
-    bin = temp_df_first.repartition(6)
+    bin = temp_df_first.repartition(4)
     df = bin.select('channel.name', 'datetime', 'frame_text')
     df.printSchema()
 
@@ -41,22 +41,12 @@ if __name__ == "__main__":
     print("df_word_channel_mentions")
     df_word_channel_mentions.printSchema()
 
-    df_with_map = df_word_channel_mentions.withColumn("arr", create_map(
-        lit("channel_name"), col("channel_name"),
-        lit("mentions"), col("count").cast(IntegerType())
-        )).drop("channel_name", "count")
+    df_with_map = df_word_channel_mentions.withColumn("arr", struct(
+        col("channel_name").alias('channel_name'),
+        col("count").alias("mentions")
+    ))
     print("df_with_map")
     df_with_map.printSchema()
-
-    ment_by_channel_schema = StructType([
-        StructField("word", StringType(), False),
-        StructField("arr", ArrayType(MapType(StringType(), IntegerType(), True)))
-    ])
-
-    temp_channel_df = df_with_map.rdd\
-        .map(lambda x: int(x[1][1]))\
-        .toDF(schema=ment_by_channel_schema)
-    temp_channel_df.printSchema()
 
     df_with_list = df_with_map.groupBy('word')\
             .agg(collect_list('arr'))\
@@ -70,7 +60,9 @@ if __name__ == "__main__":
     df_date = df_with_date_converted.groupBy('word', to_date('datetime')).count()
     df_date.printSchema()
 
-    df_ment_by_hour = df_with_date_converted.groupBy('word', to_date('datetime'), hour('datetime')).count()
+    df_ment_by_hour = df_with_date_converted\
+        .groupBy('word', to_date('datetime'), hour('datetime'))\
+        .count()
     print("df_ment_by_hour")
     df_ment_by_hour.printSchema()
 
@@ -120,7 +112,10 @@ if __name__ == "__main__":
 
     schema = StructType([
         StructField("key", StringType(), False),
-        StructField("mentions_by_channel", ArrayType(MapType(StringType(), StringType(), True))),
+        StructField("mentions_by_channel", ArrayType(
+            StructType([
+                StructField("channel_name",StringType(), True),
+                StructField("mentions",LongType(), True )]))),
         StructField("mentions_by_date",ArrayType(
             StructType([
             StructField("date", DateType(), False),
