@@ -38,14 +38,12 @@ if __name__ == "__main__":
     df_word_channel_mentions = df_with_words\
         .groupBy('word', 'channel_name')\
         .count()
-    print("df_word_channel_mentions")
     df_word_channel_mentions.printSchema()
 
     df_with_map = df_word_channel_mentions.withColumn("arr", struct(
         col("channel_name").alias('channel_name'),
         col("count").alias("mentions")
     ))
-    print("df_with_map")
     df_with_map.printSchema()
 
     df_with_list = df_with_map.groupBy('word')\
